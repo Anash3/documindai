@@ -220,3 +220,34 @@ def build_vector_db_for_selected(
         document_ids=[d.id for d in ready_docs]
     )
 
+@router.post("/{document_id}/retry", response_model=DocumentResponse)
+async def retry_document_ingestion(
+    document_id: str,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    doc = db.query(Document).filter(
+        Document.id == document_id,
+        Document.user_id == current_user.id
+    ).first()
+
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found.")
+
+    doc.status = "processing"
+    doc.error_message = None
+    db.commit()
+
+    background_tasks.add_task(
+        process_document_background,
+        document_id=doc.id,
+        file_path=doc.file_path,
+        file_type=doc.file_type,
+        user_id=current_user.id,
+        filename=doc.filename
+    )
+
+    return doc
+
+
