@@ -2,6 +2,14 @@ import os
 from typing import List
 from pydantic import ConfigDict
 from pydantic_settings import BaseSettings
+from dotenv import load_dotenv
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+env_path = os.path.join(BASE_DIR, ".env")
+if os.path.exists(env_path):
+    load_dotenv(env_path)
+
+
 
 class Settings(BaseSettings):
     APP_NAME: str = "DocuMind AI"
@@ -27,7 +35,9 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000",
     ]
 
-    model_config = ConfigDict(env_file=".env", extra="ignore")
+    model_config = ConfigDict(env_file=env_path, env_file_encoding="utf-8", extra="ignore")
+
+
 
 
 settings = Settings()
