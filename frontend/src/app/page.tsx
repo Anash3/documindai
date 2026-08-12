@@ -275,6 +275,12 @@ export default function Home() {
                             {doc.status}
                           </span>
                         </div>
+                        {doc.error_message && (
+                          <p className="mt-1 text-[10px] text-red-400 font-mono truncate" title={doc.error_message}>
+                            ⚠️ {doc.error_message}
+                          </p>
+                        )}
+
                       </div>
                     </div>
                   );

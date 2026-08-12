@@ -19,13 +19,14 @@ router = APIRouter(prefix="/documents", tags=["Documents"])
 ALLOWED_EXTENSIONS = {"pdf", "docx", "doc"}
 MAX_FILE_SIZE = 25 * 1024 * 1024  # 25 MB limit
 
-async def process_document_background(document_id: str, file_path: str, file_type: str, user_id: str, filename: str, db: Session):
+async def process_document_background(document_id: str, file_path: str, file_type: str, user_id: str, filename: str):
     """Background ingestion pipeline: Parse -> Chunk -> Embed (OpenAI SDK) -> Vector Store -> DB Update."""
-    doc = db.query(Document).filter(Document.id == document_id).first()
-    if not doc:
-        return
-
+    db = SessionLocal()
     try:
+        doc = db.query(Document).filter(Document.id == document_id).first()
+        if not doc:
+            return
+
         # Step 1: Extract text elements
         extracted = DocumentParser.parse(file_path, file_type)
         if not extracted:
@@ -72,9 +73,17 @@ async def process_document_background(document_id: str, file_path: str, file_typ
         db.commit()
 
     except Exception as e:
-        doc.status = "failed"
-        doc.error_message = str(e)
-        db.commit()
+        print(f"[Ingestion Error] Document {document_id}: {e}")
+        try:
+            doc = db.query(Document).filter(Document.id == document_id).first()
+            if doc:
+                doc.status = "failed"
+                doc.error_message = str(e)
+                db.commit()
+        except Exception as db_err:
+            print(f"[DB Exception] {db_err}")
+    finally:
+        db.close()
 
 @router.post("/upload", response_model=DocumentResponse, status_code=status.HTTP_202_ACCEPTED)
 async def upload_document(
@@ -123,8 +132,7 @@ async def upload_document(
         file_path=file_path,
         file_type=ext,
         user_id=current_user.id,
-        filename=file.filename,
-        db=db
+        filename=file.filename
     )
 
     return document
