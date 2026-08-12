@@ -4,7 +4,8 @@ import uuid
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks, status
 from sqlalchemy.orm import Session
-from app.core.database import get_db
+from app.core.database import get_db, SessionLocal
+
 from app.core.config import settings
 from app.api.v1.auth import get_current_user
 from app.models.models import User, Document, DocumentChunk
