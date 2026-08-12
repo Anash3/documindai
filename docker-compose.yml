@@ -1,6 +1,24 @@
 version: '3.8'
 
 services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: documind_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-documind}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-documind_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-documind_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-documind} -d ${POSTGRES_DB:-documind_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: ./backend
@@ -9,11 +27,14 @@ services:
       - "8000:8000"
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - DATABASE_URL=sqlite:////app/storage/documind.db
+      - DATABASE_URL=${DATABASE_URL:-postgresql://documind:documind_pass@postgres:5432/documind_db}
       - STORAGE_DIR=/app/storage/uploads
       - VECTOR_STORE_DIR=/app/storage/vectors
     volumes:
       - ./backend/storage:/app/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   frontend:
     build:
@@ -25,3 +46,6 @@ services:
       - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
     depends_on:
       - backend
+
+volumes:
+  postgres_data:
