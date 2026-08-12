@@ -40,6 +40,18 @@ class DocumentListResponse(BaseModel):
     documents: List[DocumentResponse]
     total: int
 
+class BuildVectorDBRequest(BaseModel):
+    document_ids: List[str]
+
+class VectorDBStatusResponse(BaseModel):
+    status: str
+    indexed_documents_count: int
+    total_chunks: int
+    vector_model: str
+    vector_dimensions: int
+    document_ids: List[str]
+
+
 # Citation Schema
 class Citation(BaseModel):
     document_id: str

@@ -8,7 +8,8 @@ from app.core.database import get_db
 from app.core.config import settings
 from app.api.v1.auth import get_current_user
 from app.models.models import User, Document, DocumentChunk
-from app.schemas.schemas import DocumentResponse, DocumentListResponse
+from app.schemas.schemas import DocumentResponse, DocumentListResponse, BuildVectorDBRequest, VectorDBStatusResponse
+
 from app.services.ingestion.parser import DocumentParser
 from app.services.ingestion.chunker import DocumentChunker
 from app.services.llm.openai_service import openai_service
@@ -180,3 +181,41 @@ def delete_document(
     db.delete(doc)
     db.commit()
     return None
+
+@router.post("/build-vector-db", response_model=VectorDBStatusResponse)
+def build_vector_db_for_selected(
+    req: BuildVectorDBRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    if not req.document_ids:
+        raise HTTPException(status_code=400, detail="No document IDs provided for vector DB creation.")
+
+    docs = db.query(Document).filter(
+        Document.id.in_(req.document_ids),
+        Document.user_id == current_user.id
+    ).all()
+
+    if not docs:
+        raise HTTPException(status_code=404, detail="No matching documents found for current user.")
+
+    ready_docs = [d for d in docs if d.status == "ready"]
+    failed_docs = [d for d in docs if d.status == "failed"]
+
+    if not ready_docs and failed_docs:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Selected document(s) failed ingestion: {failed_docs[0].error_message}"
+        )
+
+    total_chunks = sum(d.chunk_count for d in ready_docs)
+
+    return VectorDBStatusResponse(
+        status="ready" if ready_docs else "processing",
+        indexed_documents_count=len(ready_docs),
+        total_chunks=total_chunks,
+        vector_model=settings.EMBEDDING_MODEL,
+        vector_dimensions=1536,
+        document_ids=[d.id for d in ready_docs]
+    )
+
