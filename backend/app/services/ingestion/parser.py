@@ -1,6 +1,6 @@
 import os
 from typing import List, Dict, Any
-import fitz  # PyMuPDF
+import pymupdf
 import docx
 
 class DocumentParser:
@@ -8,7 +8,7 @@ class DocumentParser:
     def extract_from_pdf(file_path: str) -> List[Dict[str, Any]]:
         """Extract text from PDF page by page using PyMuPDF."""
         pages_data = []
-        doc = fitz.open(file_path)
+        doc = pymupdf.open(file_path)
         for page_num in range(len(doc)):
             page = doc[page_num]
             text = page.get_text("text")
