@@ -84,3 +84,4 @@ docker-compose up --build
 - **Semantic Vector Search**: High-performance cosine similarity retrieval per user and selected documents.
 - **Context-Aware Conversational RAG**: Uses `gpt-4o-mini` with follow-up query rewriting, full context assembly, and exact page/document citations.
 # documindai
+# documindai
