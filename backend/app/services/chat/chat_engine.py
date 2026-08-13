@@ -88,6 +88,24 @@ class RAGChatEngine:
 
         # Step 6: Generate response via OpenAI Chat API
         answer = await openai_service.generate_response(messages)
+
+        # Step 7: If answer indicates no information was found, clear citations
+        no_info_phrases = [
+            "couldn't find sufficient information",
+            "could not find sufficient information",
+            "no relevant document content",
+            "not enough information",
+            "does not contain enough information",
+            "no information found",
+            "not mentioned in the provided document",
+            "cannot find any information"
+        ]
+
+        answer_lower = answer.lower()
+        if any(phrase in answer_lower for phrase in no_info_phrases):
+            citations = []
+
         return answer, citations
+
 
 chat_engine = RAGChatEngine()
