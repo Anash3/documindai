@@ -58,8 +58,10 @@ async def chat_with_documents(
         user_id=current_user.id,
         question=chat_req.message,
         history=history,
-        document_ids=chat_req.document_ids
+        document_ids=chat_req.document_ids,
+        system_prompt=chat_req.system_prompt
     )
+
 
     # 5. Save assistant message to DB
     sources_dict = [c.dict() for c in citations] if citations else None

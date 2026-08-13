@@ -236,6 +236,10 @@ export default function Home() {
     }
   };
 
+  const [systemPrompt, setSystemPrompt] = useState<string>(
+    'You are DocuMind AI, an intelligent document analysis assistant. Answer accurately based on the provided document context.'
+  );
+
   const handleSendMessage = async (queryOverride?: string) => {
     const queryToSend = queryOverride || inputQuery;
     if (!queryToSend.trim() || isGenerating) return;
@@ -255,7 +259,8 @@ export default function Home() {
       const res = await api.post('/chat', {
         message: queryToSend,
         conversation_id: activeConvId,
-        document_ids: selectedDocIds.length > 0 ? selectedDocIds : undefined
+        document_ids: selectedDocIds.length > 0 ? selectedDocIds : undefined,
+        system_prompt: systemPrompt
       });
 
       if (!activeConvId) {
@@ -269,6 +274,7 @@ export default function Home() {
       setIsGenerating(false);
     }
   };
+
 
   // Filtered documents search
   const filteredDocs = documents.filter(d => 
@@ -775,6 +781,73 @@ export default function Home() {
               <div className="flex-1 flex overflow-hidden">
                 {/* Left Column (30%): Vector DB & Referenced Documents Inspector */}
                 <div className="w-80 lg:w-96 border-r border-slate-800/80 bg-slate-900/40 p-5 flex flex-col space-y-5 overflow-y-auto shrink-0">
+                  {/* System Prompt Configurator Card */}
+                  <div className="flex items-center space-x-2 text-xs font-bold text-indigo-400 uppercase tracking-wider">
+                    <Cpu className="w-4 h-4" /> System Persona & Instructions
+                  </div>
+
+                  <div className="p-4 rounded-2xl glass-panel border border-slate-800 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-semibold text-slate-300">System Prompt Persona</label>
+                      <span className="text-[10px] text-indigo-400 font-mono">OpenAI Context Role</span>
+                    </div>
+
+                    {/* Persona Quick Preset Chips */}
+                    <div className="grid grid-cols-2 gap-1.5 text-[10px]">
+                      <button
+                        onClick={() => setSystemPrompt('You are DocuMind AI, an intelligent document analysis assistant. Answer accurately based on the provided document context.')}
+                        className={`p-2 rounded-xl border text-left font-medium transition ${
+                          systemPrompt.includes('DocuMind AI')
+                            ? 'bg-indigo-950 border-indigo-500 text-indigo-200'
+                            : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        🤖 Default AI
+                      </button>
+
+                      <button
+                        onClick={() => setSystemPrompt('You are a senior legal counsel. Analyze contracts, identify liability risks, and highlight clause terms clearly.')}
+                        className={`p-2 rounded-xl border text-left font-medium transition ${
+                          systemPrompt.includes('legal counsel')
+                            ? 'bg-indigo-950 border-indigo-500 text-indigo-200'
+                            : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        ⚖️ Legal Counsel
+                      </button>
+
+                      <button
+                        onClick={() => setSystemPrompt('You are an expert financial auditor. Extract key revenue metrics, margins, dates, and fiscal trends accurately.')}
+                        className={`p-2 rounded-xl border text-left font-medium transition ${
+                          systemPrompt.includes('financial auditor')
+                            ? 'bg-indigo-950 border-indigo-500 text-indigo-200'
+                            : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        📊 Financial Auditor
+                      </button>
+
+                      <button
+                        onClick={() => setSystemPrompt('You are a principal software architect. Explain technical specifications, code patterns, and APIs in structured format.')}
+                        className={`p-2 rounded-xl border text-left font-medium transition ${
+                          systemPrompt.includes('software architect')
+                            ? 'bg-indigo-950 border-indigo-500 text-indigo-200'
+                            : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        👨‍💻 Tech Architect
+                      </button>
+                    </div>
+
+                    <textarea
+                      rows={3}
+                      value={systemPrompt}
+                      onChange={(e) => setSystemPrompt(e.target.value)}
+                      placeholder="Type custom instructions for how the AI chatbot should respond..."
+                      className="w-full p-3 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 placeholder-slate-500 leading-relaxed font-mono"
+                    />
+                  </div>
+
                   <div className="flex items-center space-x-2 text-xs font-bold text-indigo-400 uppercase tracking-wider">
                     <Database className="w-4 h-4" /> Vector DB Specifications
                   </div>
@@ -797,6 +870,7 @@ export default function Home() {
                       <span className="font-mono text-pink-300 font-semibold">Cosine Similarity</span>
                     </div>
                   </div>
+
 
                   <div className="flex items-center space-x-2 text-xs font-bold text-indigo-400 uppercase tracking-wider">
                     <Layers className="w-4 h-4" /> Indexed Documents ({selectedDocIds.length})

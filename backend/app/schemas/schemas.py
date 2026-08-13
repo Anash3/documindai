@@ -67,6 +67,8 @@ class ChatRequest(BaseModel):
     message: str
     conversation_id: Optional[str] = None
     document_ids: Optional[List[str]] = None
+    system_prompt: Optional[str] = None
+
 
 class MessageResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)

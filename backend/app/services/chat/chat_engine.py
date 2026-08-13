@@ -12,6 +12,7 @@ class RAGChatEngine:
         question: str,
         history: List[Dict[str, str]],
         document_ids: Optional[List[str]] = None,
+        system_prompt: Optional[str] = None,
         top_k: int = 5
     ) -> Tuple[str, List[Citation]]:
         """
@@ -60,10 +61,12 @@ class RAGChatEngine:
             context_blocks.append(f"{doc_ref}\n{chunk['content']}")
 
         # Step 5: Construct system prompt and LLM messages
+        base_role = system_prompt.strip() if system_prompt and system_prompt.strip() else "You are DocuMind AI, an intelligent document analysis assistant."
+
         if context_blocks:
             formatted_context = "\n\n---\n\n".join(context_blocks)
-            system_prompt = (
-                "You are DocuMind AI, an intelligent document analysis assistant.\n"
+            sys_instruction = (
+                f"{base_role}\n"
                 "Answer the user's question accurately using ONLY the provided document context below.\n"
                 "If the context does not contain enough information to answer the question, state clearly:\n"
                 "'I couldn't find sufficient information in the selected documents to answer your question.'\n"
@@ -71,13 +74,14 @@ class RAGChatEngine:
                 f"=== DOCUMENT CONTEXT ===\n{formatted_context}\n========================="
             )
         else:
-            system_prompt = (
-                "You are DocuMind AI, an intelligent document assistant.\n"
+            sys_instruction = (
+                f"{base_role}\n"
                 "The user has not selected any documents or no relevant document content was found.\n"
                 "Politely inform the user to upload or select a relevant document to ask questions about it."
             )
 
-        messages = [{"role": "system", "content": system_prompt}]
+
+        messages = [{"role": "system", "content": sys_instruction}]
         for turn in history[-4:]:
             messages.append({"role": turn["role"], "content": turn["content"]})
         messages.append({"role": "user", "content": question})
