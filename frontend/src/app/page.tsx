@@ -8,6 +8,8 @@ import {
   Plus, Check, Lock, ArrowLeft, Search, Filter, ExternalLink, Play, Clock, X
 } from 'lucide-react';
 import { api, DocumentItem, MessageItem, VectorDBStatus, ConversationItem } from '@/lib/api';
+import { MarkdownRenderer } from '@/components/MarkdownRenderer';
+
 
 export default function Home() {
   // Main Tab Navigation: 'files' | 'vector_dbs' | 'chatbots'
@@ -807,7 +809,12 @@ export default function Home() {
                               : 'glass-panel text-slate-100 rounded-bl-none border border-slate-800'
                           }`}
                         >
-                          <p className="whitespace-pre-wrap">{msg.content}</p>
+                          {msg.sender === 'user' ? (
+                            <p className="whitespace-pre-wrap">{msg.content}</p>
+                          ) : (
+                            <MarkdownRenderer content={msg.content} />
+                          )}
+
 
                           {/* Source Citations */}
                           {msg.sources && msg.sources.length > 0 && (
