@@ -22,7 +22,7 @@ ALLOWED_EXTENSIONS = {"pdf", "docx", "doc"}
 MAX_FILE_SIZE = 25 * 1024 * 1024  # 25 MB limit
 
 async def process_document_background(document_id: str, file_path: str, file_type: str, user_id: str, filename: str):
-    """Background ingestion pipeline: Parse -> Chunk -> Embed (OpenAI SDK) -> Vector Store -> DB Update."""
+    """Background ingestion pipeline: Parse text -> Create chunks -> Save in DB -> Mark ready."""
     db = SessionLocal()
     try:
         doc = db.query(Document).filter(Document.id == document_id).first()
@@ -40,11 +40,7 @@ async def process_document_background(document_id: str, file_path: str, file_typ
         if not chunks:
             raise ValueError("Document yielded no valid text chunks.")
 
-        # Step 3: Generate OpenAI Embeddings
-        chunk_texts = [c["content"] for c in chunks]
-        embeddings = await openai_service.get_embeddings(chunk_texts)
-
-        # Step 4: Save chunk metadata in Database
+        # Step 3: Save chunk metadata in Database (without generating embeddings yet)
         db_chunks = []
         for idx, chunk in enumerate(chunks):
             db_chunk = DocumentChunk(
@@ -59,15 +55,6 @@ async def process_document_background(document_id: str, file_path: str, file_typ
             db_chunks.append(db_chunk)
         
         db.add_all(db_chunks)
-
-        # Step 5: Save in Vector Store
-        vector_store.add_document_chunks(
-            user_id=user_id,
-            document_id=document_id,
-            filename=filename,
-            chunks=chunks,
-            embeddings=embeddings
-        )
 
         doc.status = "ready"
         doc.chunk_count = len(chunks)
@@ -86,6 +73,7 @@ async def process_document_background(document_id: str, file_path: str, file_typ
             print(f"[DB Exception] {db_err}")
     finally:
         db.close()
+
 
 @router.post("/upload", response_model=DocumentResponse, status_code=status.HTTP_202_ACCEPTED)
 async def upload_document(
@@ -184,7 +172,7 @@ def delete_document(
     return None
 
 @router.post("/build-vector-db", response_model=VectorDBStatusResponse)
-def build_vector_db_for_selected(
+async def build_vector_db_for_selected(
     req: BuildVectorDBRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -201,24 +189,46 @@ def build_vector_db_for_selected(
         raise HTTPException(status_code=404, detail="No matching documents found for current user.")
 
     ready_docs = [d for d in docs if d.status == "ready"]
-    failed_docs = [d for d in docs if d.status == "failed"]
+    if not ready_docs:
+        raise HTTPException(status_code=400, detail="No ready documents available for vector DB indexing.")
 
-    if not ready_docs and failed_docs:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Selected document(s) failed ingestion: {failed_docs[0].error_message}"
+    total_chunks = 0
+    for doc in ready_docs:
+        chunks = db.query(DocumentChunk).filter(DocumentChunk.document_id == doc.id).all()
+        if not chunks:
+            continue
+        
+        chunk_dicts = [
+            {
+                "chunk_index": c.chunk_index,
+                "content": c.content,
+                "page_number": c.page_number,
+                "section_title": c.section_title,
+                "metadata": c.metadata_json or {}
+            }
+            for c in chunks
+        ]
+        chunk_texts = [c.content for c in chunks]
+        embeddings = await openai_service.get_embeddings(chunk_texts)
+        
+        vector_store.add_document_chunks(
+            user_id=current_user.id,
+            document_id=doc.id,
+            filename=doc.filename,
+            chunks=chunk_dicts,
+            embeddings=embeddings
         )
-
-    total_chunks = sum(d.chunk_count for d in ready_docs)
+        total_chunks += len(chunks)
 
     return VectorDBStatusResponse(
-        status="ready" if ready_docs else "processing",
+        status="ready",
         indexed_documents_count=len(ready_docs),
         total_chunks=total_chunks,
         vector_model=settings.EMBEDDING_MODEL,
         vector_dimensions=1536,
         document_ids=[d.id for d in ready_docs]
     )
+
 
 @router.post("/{document_id}/retry", response_model=DocumentResponse)
 async def retry_document_ingestion(
